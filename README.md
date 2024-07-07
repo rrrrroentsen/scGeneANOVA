@@ -4,25 +4,25 @@
 
 ## Installation
 To install `scGeneANOVA`, you can use the `devtools` package to install directly from GitHub:
-#Install devtools if you haven't
+# Install devtools if you haven't
 if (!requireNamespace("devtools", quietly = TRUE)) {
   install.packages("devtools")
 }
-#Install scGeneANOVA from GitHub
+# Install scGeneANOVA from GitHub
 devtools::install_github("rrrrroentsen/scGeneANOVA")
 
 ## Usage
-#Load necessary libraries
+# Load necessary libraries
 library(Seurat)
 library(scGeneANOVA)
 
-#Example usage with a Seurat object
+# Example usage with a Seurat object
 seurat_obj <- readRDS("path/to/your/seurat_obj.rds")
 results <- scGeneANOVA(seurat_obj, gene_list = NULL, cell_type_column = "Cell_Type", group_column = "Patient_ident", sample_column = "orig.ident")
-#View ANOVA and Tukey's test results
+# View ANOVA and Tukey's test results
 print(results)
 
-#Function Parameters
+# Function Parameters
 •	seurat_obj: A Seurat object containing single-cell RNA-seq data.
 •	gene_list: A list of genes to analyze. If NULL, all genes are used.
 •	cell_type_column: The column name in the metadata that contains cell type information. If NULL, all cells are treated as one group.
