@@ -111,15 +111,3 @@ scGeneANOVA <- function(seurat_obj, gene_list = NULL, cell_type_column = NULL, g
   return(anova_tukey_results_df)
 }
 
-# Example usage
-seurat_obj <- readRDS("/media/desk16/szz068/INR/5.0pbmc/Final/MYE.rds")
-seurat_obj <- subset(x = seurat_obj, subset = Cell_Type == "pDC")
-
-# Add Patient_ident column
-seurat_obj@meta.data$Patient_ident <- ifelse(startsWith(seurat_obj@meta.data$orig.ident, "HC"), "HC", ifelse(startsWith(seurat_obj@meta.data$orig.ident, "INR"), "INR", "IR"))
-
-# Perform the analysis with default settings
-anova_tukey_results_df <- scGeneANOVA(seurat_obj, gene_list = NULL, cell_type_column = NULL, group_column = "Patient_ident", sample_column = "orig.ident")
-
-# Save the result
-write.csv(anova_tukey_results_df, "anova_tukey_results.csv", row.names = FALSE)
