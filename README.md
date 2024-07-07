@@ -42,13 +42,12 @@ write.csv(results, "anova_tukey_results.csv", row.names = FALSE)
 
 •	chunk_size: The number of genes to process in each chunk. Default is 100.
 
-## License
-This project is licensed under the MIT License - see the LICENSE file for details.
+## Author Information
+•	scGeneANOVA is developed by Xiaosheng Liu (ORCID 0000-0003-4282-5740)
 
-## Acknowledgments
-•	Built using Seurat and ggplot2.
+## Additional Notes
+For more detailed instructions and examples, please refer to the package documentation.
 
-•	Inspired by the need for comprehensive single-cell RNA-seq data analysis.
+If you encounter any issues or have suggestions for improvement, please open an issue on GitHub.
 
-## Contributing
-Contributions are welcome! Please fork the repository and create a pull request for any enhancements or bug fixes.
+This package is provided as-is under the MIT License.
