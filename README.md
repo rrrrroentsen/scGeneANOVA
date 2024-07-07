@@ -8,17 +8,23 @@ To install `scGeneANOVA`, you can use the `devtools` package to install directly
 devtools::install_github("rrrrroentsen/scGeneANOVA")
 
 ## Usage
-## Load necessary libraries
+
 library(Seurat)
+
+library(tidyr)
+
+library(dplyr)
+
+library(progress)
 
 library(scGeneANOVA)
 
-## Example usage with a Seurat object
 seurat_obj <- readRDS("path/to/your/seurat_obj.rds")
 
-results <- scGeneANOVA(seurat_obj, gene_list = NULL, cell_type_column = "Cell_Type", group_column = "Patient_ident", sample_column = "orig.ident")
+gene_list <- c("CD40", "CD80", "CD83")
 
-## View and save ANOVA and Tukey's test results
+results <- scGeneANOVA(seurat_obj, gene_list = gene_list, cell_type_column = "Cell_Type", group_column = "Patient_ident", sample_column = "orig.ident")
+
 print(results)
 
 write.csv(results, "anova_tukey_results.csv", row.names = FALSE)
