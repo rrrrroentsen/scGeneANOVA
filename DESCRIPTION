@@ -1,0 +1,16 @@
+Package: scGeneANOVA
+Type: Package
+Title: Gene Expression Analysis and ANOVA for scRNA-seq Data
+Version: 0.1.0
+Date: 2024-07-07
+Author: Xiasheng Liu
+Maintainer: Xiasheng Liu <liuxs.tsinghua@foxmail.com>
+Description: This package provides functions for gene expression analysis and ANOVA on single-cell RNA sequencing (scRNA-seq) data.
+License: MIT
+Imports: 
+    ggplot2,
+    dplyr,
+    tidyr,
+    Seurat,
+    multcomp,
+    progress
