@@ -40,7 +40,7 @@ calculateFC <- function(seurat_obj,
         seurat_obj <- subset(seurat_obj, seurat_obj[[cell_type_column]] == cell_type)
         cell_type_name <- cell_type
     } else {
-        cell_type_name <- "All"
+        cell_type_name <- "All_Cells"
     }
 
     # Set identities to the grouping column
