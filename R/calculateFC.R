@@ -31,10 +31,10 @@ calculateFC <- function(seurat_obj,
                         slot = "data", 
                         pseudocount.use = 1, 
                         base = 2) {
-
+    
     # Start time for execution
     start_time <- Sys.time()
-
+    
     # Subset by cell type if specified
     if (!is.null(cell_type)) {
         seurat_obj <- subset(seurat_obj, seurat_obj[[cell_type_column]] == cell_type)
@@ -42,27 +42,27 @@ calculateFC <- function(seurat_obj,
     } else {
         cell_type_name <- "All_Cells"
     }
-
+    
     # Set identities to the grouping column
     Idents(seurat_obj) <- group_column
-
+    
     # Select cells from the two groups
     cells.1 <- WhichCells(seurat_obj, ident = ident.1)
     cells.2 <- WhichCells(seurat_obj, ident = ident.2)
-
+    
     # Get expression matrix
     data <- GetAssayData(object = seurat_obj, slot = slot)
-
+    
     # Define mean function based on slot and pseudocount
     log1pdata.mean.fxn <- function(x) {
         return(log(x = (rowSums(x = expm1(x = x)) + pseudocount.use) / NCOL(x), base = base))
     }
-
+    
     scaledata.mean.fxn <- rowMeans
     counts.mean.fxn <- function(x) {
         return(log(x = (rowSums(x = x) + pseudocount.use) / NCOL(x), base = base))
     }
-
+    
     # Select mean function based on the slot
     mean.fxn <- switch(
         EXPR = slot,
@@ -71,7 +71,7 @@ calculateFC <- function(seurat_obj,
         'counts' = counts.mean.fxn,
         log1pdata.mean.fxn
     )
-
+    
     # Calculate fold change
     fc.results <- FoldChange(
         object = data,
@@ -83,11 +83,11 @@ calculateFC <- function(seurat_obj,
         base = base,
         fc.name = "avg_logFC"
     )
-
+    
     # Initialize p-value and adjusted p-value columns
     fc.results$p_val <- NA
     fc.results$p_val_adj <- NA
-
+    
     # Calculate p-values using Wilcoxon rank-sum test for each gene
     for (gene in rownames(fc.results)) {
         expr.1 <- data[gene, cells.1]
@@ -97,14 +97,14 @@ calculateFC <- function(seurat_obj,
         p_val <- wilcox.test(expr.1, expr.2)$p.value
         fc.results[gene, "p_val"] <- p_val
     }
-
+    
     # Adjust p-values using Benjamini-Hochberg correction
     fc.results$p_val_adj <- p.adjust(fc.results$p_val, method = "BH")
-
+    
     # Add columns for group identities and cell type
     fc.results$Group <- paste(ident.1, "vs", ident.2)
     fc.results$Cell_Type <- cell_type_name
-
+    
     # Calculate time taken
     end_time <- Sys.time()
     time_taken <- end_time - start_time
