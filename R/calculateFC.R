@@ -40,7 +40,7 @@ calculateFC <- function(seurat_obj,
         seurat_obj <- subset(seurat_obj, seurat_obj[[cell_type_column]] == cell_type)
         cell_type_name <- cell_type
     } else {
-        cell_type_name <- "All_Cells"
+        cell_type_name <- "All"
     }
 
     # Set identities to the grouping column
@@ -84,16 +84,26 @@ calculateFC <- function(seurat_obj,
         fc.name = "avg_logFC"
     )
 
-    # Add p-values and adjusted p-values
-    test.results <- FindMarkers(seurat_obj, ident.1 = ident.1, ident.2 = ident.2, features = features, logfc.threshold = 0, min.pct = 0, only.pos = FALSE, slot = slot)
-    
-    # Merge fold change with test results
-    combined.results <- merge(fc.results, test.results[, c("p_val", "p_val_adj")], by = "row.names")
-    colnames(combined.results)[1] <- "Gene" # Rename the first column to "Gene"
-    
+    # Initialize p-value and adjusted p-value columns
+    fc.results$p_val <- NA
+    fc.results$p_val_adj <- NA
+
+    # Calculate p-values using Wilcoxon rank-sum test for each gene
+    for (gene in rownames(fc.results)) {
+        expr.1 <- data[gene, cells.1]
+        expr.2 <- data[gene, cells.2]
+        
+        # Perform Wilcoxon rank-sum test
+        p_val <- wilcox.test(expr.1, expr.2)$p.value
+        fc.results[gene, "p_val"] <- p_val
+    }
+
+    # Adjust p-values using Benjamini-Hochberg correction
+    fc.results$p_val_adj <- p.adjust(fc.results$p_val, method = "BH")
+
     # Add columns for group identities and cell type
-    combined.results$Group <- paste(ident.1, "vs", ident.2)
-    combined.results$Cell_Type <- cell_type_name
+    fc.results$Group <- paste(ident.1, "vs", ident.2)
+    fc.results$Cell_Type <- cell_type_name
 
     # Calculate time taken
     end_time <- Sys.time()
@@ -102,5 +112,5 @@ calculateFC <- function(seurat_obj,
     # Print the execution time
     print(paste("Execution Time:", time_taken))
     
-    return(combined.results)
+    return(fc.results)
 }
