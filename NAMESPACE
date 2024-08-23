@@ -3,8 +3,8 @@
 export(scGeneANOVA)
 export(calculateFC)
 
-importFrom(Seurat, FetchData, Idents, WhichCells, GetAssayData, DefaultAssay, FoldChange)
-importFrom(dplyr, group_by, summarize, across, mutate, bind_rows, filter, select, n_distinct)
+importFrom(Seurat, FetchData, Idents, `Idents<-`, WhichCells, GetAssayData, DefaultAssay, FoldChange)
+importFrom(dplyr, `%>%`, group_by, summarize, across, mutate, bind_rows, filter, select, n_distinct)
 importFrom(tidyr, pivot_longer)
 importFrom(progress, progress_bar)
 importFrom(stats, aov, TukeyHSD)
