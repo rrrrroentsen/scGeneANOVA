@@ -17,7 +17,7 @@
 #' results <- scGeneANOVA(seurat_obj, group_column = "Patient_ident", sample_column = "orig.ident")
 #' }
 #' @export
-scGeneANOVA <- function(seurat_obj, gene_list = NULL, cell_type_column = NULL, group_column, sample_column, chunk_size = 100) {
+run_scGeneANOVA <- function(seurat_obj, gene_list = NULL, cell_type_column = NULL, group_column, sample_column, chunk_size = 100) {
     
     # If gene_list is NULL, use all genes in the Seurat object
     if (is.null(gene_list)) {
