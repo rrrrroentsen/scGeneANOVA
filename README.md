@@ -23,7 +23,7 @@ seurat_obj <- readRDS("path/to/your/seurat_obj.rds")
 
 gene_list <- c("CD40", "CD80", "CD83")
 
-results <- scGeneANOVA(seurat_obj, gene_list = gene_list, cell_type_column = "Cell_Type", group_column = "Patient_ident", sample_column = "orig.ident")
+results <- run_scGeneANOVA(seurat_obj, gene_list = gene_list, cell_type_column = "Cell_Type", group_column = "Patient_ident", sample_column = "orig.ident")
 
 print(results)
 
