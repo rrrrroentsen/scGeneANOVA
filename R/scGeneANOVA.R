@@ -125,7 +125,7 @@ scGeneANOVA <- function(seurat_obj, gene_list = NULL, cell_type_column = NULL, g
   for (comb in group_combinations) {
     ident1 <- comb[1]
     ident2 <- comb[2]
-    fc_result <- calculateFC(seurat_obj, 
+    fc_result <- scGeneANOVA::calculateFC(seurat_obj, 
                              cell_type_column = cell_type_column, 
                              group_column = group_column, 
                              ident.1 = ident1, 
