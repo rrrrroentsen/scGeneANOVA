@@ -260,25 +260,26 @@ calculateFC <- function(seurat_obj,
     
     # Select mean function based on the slot and normalization method
     mean.fxn <- switch(
-    EXPR = slot,
-    'data' = switch(
-        EXPR = norm.method %||% '',
-        'LogNormalize' = function(x) {
+        EXPR = slot,
+        'data' = switch(
+            EXPR = norm.method %||% '',
+            'LogNormalize' = function(x) {
+                if (is.vector(x)) {
+                    x <- matrix(x, nrow = 1)
+                }
+                return(log(x = rowMeans(x = expm1(x = x)) + pseudocount.use, base = base))
+            },
+            default.mean.fxn
+        ),
+        'scale.data' = function(x) {
             if (is.vector(x)) {
                 x <- matrix(x, nrow = 1)
             }
-            return(log(x = rowMeans(x = expm1(x = x)) + pseudocount.use, base = base))
+            rowMeans(x)
         },
         default.mean.fxn
-    ),
-    'scale.data' = function(x) {
-        if (is.vector(x)) {
-            x <- matrix(x, nrow = 1)
-        }
-        rowMeans(x)
-    },
-    default.mean.fxn
-)
+    )
+    
     # Calculate fold change
     fc.results <- Seurat::FoldChange(
         object = data,
