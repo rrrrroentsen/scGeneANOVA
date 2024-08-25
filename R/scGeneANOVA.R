@@ -221,77 +221,84 @@ calculateFC <- function(seurat_obj,
     
     # Subset the Seurat object by cell type if specified
     if (!is.null(cell_type)) {
-        seurat_obj <- seurat_obj[, seurat_obj[[cell_type_column]] == cell_type]
+        seurat_obj <- Seurat::subset(seurat_obj, seurat_obj[[cell_type_column]] == cell_type)
         cell_type_name <- cell_type
     } else {
         cell_type_name <- "All_Cells"
     }
     
     # Set identities to the grouping column
-    seurat_obj$active.ident <- seurat_obj[[group_column]]
+    Seurat::Idents(seurat_obj) <- group_column
     
     # Select cells from the two groups
-    cells.1 <- colnames(seurat_obj)[seurat_obj$active.ident == ident.1]
-    cells.2 <- colnames(seurat_obj)[seurat_obj$active.ident == ident.2]
+    cells.1 <- Seurat::WhichCells(seurat_obj, ident = ident.1)
+    cells.2 <- Seurat::WhichCells(seurat_obj, ident = ident.2)
     
     # Get the expression matrix from the specified slot
-    data <- seurat_obj@assays$RNA[[slot]]
+    data <- Seurat::GetAssayData(object = seurat_obj, slot = slot)
     
     # Define the default mean function based on slot and pseudocount
     default.mean.fxn <- function(x) {
         if (is.vector(x)) {
             x <- matrix(x, nrow = 1)
         }
-        return(log(rowMeans(x) + pseudocount.use, base = base))
+        return(log(x = rowMeans(x = x) + pseudocount.use, base = base))
     }
     
     # Check normalization method if slot is "data"
     norm.method <- NULL
     if (slot == "data") {
-        norm.command <- paste0("NormalizeData.", seurat_obj@assays$RNA@data@norm)
-        if (exists(norm.command, where = as.environment("package:Seurat"))) {
-            norm.method <- get(norm.command)(seurat_obj)
+        norm.command <- paste0("NormalizeData.", Seurat::DefaultAssay(object = seurat_obj))
+        if (norm.command %in% Seurat::Command(object = seurat_obj)) {
+            norm.method <- Seurat::Command(
+                object = seurat_obj,
+                command = norm.command,
+                value = "normalization.method"
+            )
         }
     }
     
     # Select mean function based on the slot and normalization method
     mean.fxn <- switch(
-      EXPR = slot,
-      'data' = switch(
-          EXPR = norm.method %||% '',
-          'LogNormalize' = function(x) {
-              if (is.vector(x)) {
-                  x <- matrix(x, nrow = 1)
-              }
-              return(log(rowMeans(expm1(x)) + pseudocount.use, base = base))
-          },
-          default.mean.fxn
-      ),
-      'scale.data' = function(x) {
-          if (is.vector(x)) {
-              x <- matrix(x, nrow = 1)
-          }
-          rowMeans(x)
-      },
-      default.mean.fxn
-    )
-    
+    EXPR = slot,
+    'data' = switch(
+        EXPR = norm.method %||% '',
+        'LogNormalize' = function(x) {
+            if (is.vector(x)) {
+                x <- matrix(x, nrow = 1)
+            }
+            return(log(x = rowMeans(x = expm1(x = x)) + pseudocount.use, base = base))
+        },
+        default.mean.fxn
+    ),
+    'scale.data' = function(x) {
+        if (is.vector(x)) {
+            x <- matrix(x, nrow = 1)
+        }
+        rowMeans(x)
+    },
+    default.mean.fxn
+)
     # Calculate fold change
-    data.1 <- data[, cells.1]
-    data.2 <- data[, cells.2]
-    
-    fc.results <- data.frame(
-        gene = rownames(data),
-        avg_logFC = mean.fxn(data.1) - mean.fxn(data.2)
+    fc.results <- Seurat::FoldChange(
+        object = data,
+        cells.1 = cells.1,
+        cells.2 = cells.2,
+        features = features,
+        mean.fxn = mean.fxn,
+        pseudocount.use = pseudocount.use,
+        base = base,
+        fc.name = "avg_logFC"
     )
     
     # Add group identities and cell type to the results
-    if (nrow(fc.results) > 0) {
+    if (!is.null(fc.results) && nrow(fc.results) > 0) {
         fc.results$Group <- paste(ident.1, "vs", ident.2)
         fc.results$Cell_Type <- cell_type_name
+        
         fc.results$Comparison <- gsub(" vs ", "-", fc.results$Group)
+        fc.results$Comparison <- as.character(fc.results$Comparison)
     }
     
     return(fc.results)
 }
-
