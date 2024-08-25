@@ -1,22 +1,3 @@
-#' scGeneANOVA
-#'
-#' This function performs gene expression analysis and ANOVA on scRNA-seq data,
-#' with additional functionality to calculate fold change (FC) between specified groups.
-#'
-#' @param seurat_obj A Seurat object containing the scRNA-seq data.
-#' @param gene_list A list of genes to analyze. If NULL, all genes are used.
-#' @param cell_type_column The column name in the metadata that contains cell type information. If NULL, all cells are treated as one group.
-#' @param group_column The column name in the metadata that contains group information.
-#' @param sample_column The column name in the metadata that contains sample information.
-#' @param chunk_size The number of genes to process in each chunk. Default is 100.
-#'
-#' @return A dataframe containing ANOVA, Tukey's test results, and fold change (FC) calculations.
-#' @examples
-#' \dontrun{
-#' seurat_obj <- readRDS("path/to/your/seurat_obj.rds")
-#' results <- scGeneANOVA(seurat_obj, group_column = "Patient_ident", sample_column = "orig.ident")
-#' }
-#' @export
 run_scGeneANOVA <- function(seurat_obj, gene_list = NULL, cell_type_column = NULL, group_column, sample_column, chunk_size = 100) {
     
     # If gene_list is NULL, use all genes in the Seurat object
@@ -30,13 +11,13 @@ run_scGeneANOVA <- function(seurat_obj, gene_list = NULL, cell_type_column = NUL
         cell_type_column <- "Default_Cell_Type"
     }
     
-    # Function to calculate average gene expression for each sample and cell type
+    # Define a function to calculate average gene expression
     analyze_gene_expression <- function(seurat_obj, genes_chunk, cell_type_column, sample_column) {
-        # Fetch data for specified genes, cell types, and samples
+        # Fetch data for the specified genes, cell types, and samples
         expression_data <- Seurat::FetchData(seurat_obj, vars = c(genes_chunk, cell_type_column, sample_column))
         avg_exp_cols <- paste0("avg.exp_", genes_chunk)
         
-        # Calculate mean expression for each gene across samples and cell types
+        # Calculate the average expression for each gene across samples and cell types
         expression_data %>%
             dplyr::group_by(!!rlang::sym(sample_column), !!rlang::sym(cell_type_column)) %>%
             dplyr::summarize(dplyr::across(dplyr::all_of(genes_chunk), ~ mean(expm1(.), na.rm = TRUE), .names = "avg.exp_{.col}"), .groups = 'drop') %>%
@@ -44,7 +25,7 @@ run_scGeneANOVA <- function(seurat_obj, gene_list = NULL, cell_type_column = NUL
             dplyr::mutate(Gene = sub("avg.exp_", "", Gene))
     }
     
-    # Initialize result dataframe and progress bar
+    # Initialize the results dataframe and progress bar
     total_chunks <- ceiling(length(gene_list) / chunk_size)
     pb <- progress::progress_bar$new(
         format = "  Analyzing genes [:bar] :percent eta: :eta",
@@ -59,11 +40,11 @@ run_scGeneANOVA <- function(seurat_obj, gene_list = NULL, cell_type_column = NUL
         analyze_gene_expression(seurat_obj, genes_chunk, cell_type_column, sample_column)
     }))
     
-    # Add patient information to the result dataframe
+    # Add patient information to the results dataframe
     patient_column <- seurat_obj@meta.data[[group_column]][match(final_result[[sample_column]], seurat_obj@meta.data[[sample_column]])]
     final_result <- cbind(final_result, Patient = patient_column)
     
-    # Function to perform ANOVA and Tukey's test for a single gene and cell type
+    # Define a function for ANOVA and Tukey's test for a single gene and cell type
     anova_single_gene_celltype <- function(data, gene, cell_type, cell_type_column) {
         anova_data <- dplyr::filter(data, Gene == gene, !!rlang::sym(cell_type_column) == cell_type)
         
@@ -191,23 +172,6 @@ run_scGeneANOVA <- function(seurat_obj, gene_list = NULL, cell_type_column = NUL
     return(final_merged_output)
 }
 
-#' calculateFC
-#'
-#' This function calculates the fold change (FC) in gene expression between two groups of cells.
-#'
-#' @param seurat_obj A Seurat object containing the scRNA-seq data.
-#' @param cell_type_column The column name in the metadata that contains cell type information.
-#' @param group_column The column name in the metadata that contains group information.
-#' @param ident.1 The first group to compare.
-#' @param ident.2 The second group to compare.
-#' @param cell_type A specific cell type to analyze. If NULL, all cell types are analyzed together.
-#' @param features A vector of gene names to analyze. If NULL, all genes are analyzed.
-#' @param slot The data slot to use for expression values (e.g., "data" or "scale.data").
-#' @param pseudocount.use A small constant to add to expression values to avoid log transformation issues.
-#' @param base The logarithm base used for fold change calculation.
-#'
-#' @return A dataframe containing fold change (FC) results for the specified genes and groups.
-#' @export
 calculateFC <- function(seurat_obj, 
                         cell_type_column, 
                         group_column, 
@@ -221,7 +185,7 @@ calculateFC <- function(seurat_obj,
     
     # Subset the Seurat object by cell type if specified
     if (!is.null(cell_type)) {
-        seurat_obj <- Seurat::subset(seurat_obj, seurat_obj[[cell_type_column]] == cell_type)
+        seurat_obj <- Seurat::subset(seurat_obj, subset = seurat_obj[[cell_type_column]] == cell_type)
         cell_type_name <- cell_type
     } else {
         cell_type_name <- "All_Cells"
@@ -237,68 +201,43 @@ calculateFC <- function(seurat_obj,
     # Get the expression matrix from the specified slot
     data <- Seurat::GetAssayData(object = seurat_obj, slot = slot)
     
-    # Define the default mean function based on slot and pseudocount
-    default.mean.fxn <- function(x) {
+    # If features is NULL, use all genes
+    if (is.null(features)) {
+        features <- rownames(data)
+    }
+    
+    # Select the data for the specified cells and features
+    data.1 <- data[features, cells.1, drop = FALSE]
+    data.2 <- data[features, cells.2, drop = FALSE]
+    
+    # Define the mean function with apply to replace rowMeans
+    scGeneANOVA_fc <- function(x, pseudocount.use, base) {
         if (is.vector(x)) {
             x <- matrix(x, nrow = 1)
         }
-        return(log(x = rowMeans(x = x) + pseudocount.use, base = base))
+        return(log(apply(x, 1, mean, na.rm = TRUE) + pseudocount.use, base = base))
     }
     
-    # Check normalization method if slot is "data"
-    norm.method <- NULL
-    if (slot == "data") {
-        norm.command <- paste0("NormalizeData.", Seurat::DefaultAssay(object = seurat_obj))
-        if (norm.command %in% Seurat::Command(object = seurat_obj)) {
-            norm.method <- Seurat::Command(
-                object = seurat_obj,
-                command = norm.command,
-                value = "normalization.method"
-            )
-        }
-    }
-    
-    # Select mean function based on the slot and normalization method
-    mean.fxn <- switch(
-        EXPR = slot,
-        'data' = switch(
-            EXPR = norm.method %||% '',
-            'LogNormalize' = function(x) {
-                if (is.vector(x)) {
-                    x <- matrix(x, nrow = 1)
-                }
-                return(log(x = rowMeans(x = expm1(x = x)) + pseudocount.use, base = base))
-            },
-            default.mean.fxn
-        ),
-        'scale.data' = function(x) {
-            if (is.vector(x)) {
-                x <- matrix(x, nrow = 1)
-            }
-            rowMeans(x)
-        },
-        default.mean.fxn
-    )
+    # Calculate average expression for both groups
+    avg.exp.1 <- scGeneANOVA_fc(data.1, pseudocount.use, base)
+    avg.exp.2 <- scGeneANOVA_fc(data.2, pseudocount.use, base)
     
     # Calculate fold change
-    fc.results <- Seurat::FoldChange(
-        object = data,
-        cells.1 = cells.1,
-        cells.2 = cells.2,
-        features = features,
-        mean.fxn = mean.fxn,
-        pseudocount.use = pseudocount.use,
-        base = base,
-        fc.name = "avg_logFC"
+    fold_changes <- avg.exp.1 - avg.exp.2
+    
+    # Create the result dataframe
+    fc.results <- data.frame(
+        Gene = features,
+        avg_logFC = fold_changes,
+        pct.1 = apply(data.1 > 0, 1, mean),
+        pct.2 = apply(data.2 > 0, 1, mean)
     )
     
     # Add group identities and cell type to the results
-    if (!is.null(fc.results) && nrow(fc.results) > 0) {
+    if (nrow(fc.results) > 0) {
         fc.results$Group <- paste(ident.1, "vs", ident.2)
         fc.results$Cell_Type <- cell_type_name
-        
         fc.results$Comparison <- gsub(" vs ", "-", fc.results$Group)
-        fc.results$Comparison <- as.character(fc.results$Comparison)
     }
     
     return(fc.results)
