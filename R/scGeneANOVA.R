@@ -210,9 +210,9 @@ calculateFC <- function(seurat_obj,
     data.1 <- data[features, cells.1, drop = FALSE]
     data.2 <- data[features, cells.2, drop = FALSE]
     
-    # Calculate average expression for both groups assuming LogNormalize
-    avg.exp.1 <- log(rowMeans(expm1(data.1), na.rm = TRUE) + pseudocount.use, base = base)
-    avg.exp.2 <- log(rowMeans(expm1(data.2), na.rm = TRUE) + pseudocount.use, base = base)
+    # Calculate average expression for both groups using apply instead of rowMeans
+    avg.exp.1 <- log(apply(expm1(data.1), 1, function(x) mean(x, na.rm = TRUE)) + pseudocount.use, base = base)
+    avg.exp.2 <- log(apply(expm1(data.2), 1, function(x) mean(x, na.rm = TRUE)) + pseudocount.use, base = base)
     
     # Calculate fold change
     fold_changes <- avg.exp.1 - avg.exp.2
@@ -221,8 +221,8 @@ calculateFC <- function(seurat_obj,
     fc.results <- data.frame(
         Gene = features,
         avg_logFC = fold_changes,
-        pct.1 = rowMeans(data.1 > 0),
-        pct.2 = rowMeans(data.2 > 0)
+        pct.1 = apply(data.1 > 0, 1, mean),
+        pct.2 = apply(data.2 > 0, 1, mean)
     )
     
     # Add group identities and cell type to the results
@@ -234,3 +234,4 @@ calculateFC <- function(seurat_obj,
     
     return(fc.results)
 }
+
