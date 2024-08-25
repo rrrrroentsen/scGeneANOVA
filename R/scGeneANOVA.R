@@ -1,23 +1,23 @@
 run_scGeneANOVA <- function(seurat_obj, gene_list = NULL, cell_type_column = NULL, group_column, sample_column, chunk_size = 100) {
     
-    # If gene_list is NULL, use all genes in the Seurat object
+    # 如果 gene_list 为空，使用 Seurat 对象中的所有基因
     if (is.null(gene_list)) {
         gene_list <- rownames(seurat_obj@assays$RNA@data)
     }
     
-    # If cell_type_column is NULL, treat all cells as a single group
+    # 如果 cell_type_column 为空，将所有细胞视为单一组
     if (is.null(cell_type_column)) {
         seurat_obj@meta.data$Default_Cell_Type <- "All_Cells"
         cell_type_column <- "Default_Cell_Type"
     }
     
-    # Define a function to calculate average gene expression
+    # 定义计算平均基因表达的函数
     analyze_gene_expression <- function(seurat_obj, genes_chunk, cell_type_column, sample_column) {
-        # Fetch data for the specified genes, cell types, and samples
+        # 获取指定基因、细胞类型和样本的数据
         expression_data <- Seurat::FetchData(seurat_obj, vars = c(genes_chunk, cell_type_column, sample_column))
         avg_exp_cols <- paste0("avg.exp_", genes_chunk)
         
-        # Calculate the average expression for each gene across samples and cell types
+        # 计算每个基因在样本和细胞类型之间的平均表达
         expression_data %>%
             dplyr::group_by(!!rlang::sym(sample_column), !!rlang::sym(cell_type_column)) %>%
             dplyr::summarize(dplyr::across(dplyr::all_of(genes_chunk), ~ mean(expm1(.), na.rm = TRUE), .names = "avg.exp_{.col}"), .groups = 'drop') %>%
@@ -25,14 +25,14 @@ run_scGeneANOVA <- function(seurat_obj, gene_list = NULL, cell_type_column = NUL
             dplyr::mutate(Gene = sub("avg.exp_", "", Gene))
     }
     
-    # Initialize the results dataframe and progress bar
+    # 初始化结果数据框和进度条
     total_chunks <- ceiling(length(gene_list) / chunk_size)
     pb <- progress::progress_bar$new(
         format = "  Analyzing genes [:bar] :percent eta: :eta",
         total = total_chunks, clear = FALSE, width = 60
     )
     
-    # Process genes in chunks and calculate average expression
+    # 以块为单位处理基因并计算平均表达
     final_result <- dplyr::bind_rows(lapply(seq(1, length(gene_list), by = chunk_size), function(start_idx) {
         pb$tick()
         end_idx <- min(start_idx + chunk_size - 1, length(gene_list))
@@ -40,15 +40,15 @@ run_scGeneANOVA <- function(seurat_obj, gene_list = NULL, cell_type_column = NUL
         analyze_gene_expression(seurat_obj, genes_chunk, cell_type_column, sample_column)
     }))
     
-    # Add patient information to the results dataframe
+    # 将患者信息添加到结果数据框中
     patient_column <- seurat_obj@meta.data[[group_column]][match(final_result[[sample_column]], seurat_obj@meta.data[[sample_column]])]
     final_result <- cbind(final_result, Patient = patient_column)
     
-    # Define a function for ANOVA and Tukey's test for a single gene and cell type
+    # 定义单个基因和细胞类型的ANOVA和Tukey检验函数
     anova_single_gene_celltype <- function(data, gene, cell_type, cell_type_column) {
         anova_data <- dplyr::filter(data, Gene == gene, !!rlang::sym(cell_type_column) == cell_type)
         
-        # Perform ANOVA and Tukey's test if there are at least 2 groups with data
+        # 如果有至少2个组别的数据，执行ANOVA和Tukey检验
         if (dplyr::n_distinct(anova_data$Patient) < 2) return(NULL)
         
         tryCatch({
@@ -58,7 +58,7 @@ run_scGeneANOVA <- function(seurat_obj, gene_list = NULL, cell_type_column = NUL
         }, error = function(e) NULL)
     }
     
-    # Perform ANOVA and Tukey's test for all genes and cell types
+    # 对所有基因和细胞类型执行ANOVA和Tukey检验
     anova_all_genes <- function(data, gene_list, cell_types, cell_type_column) {
         pb <- progress::progress_bar$new(
             format = "  Performing ANOVA and Tukey's test [:bar] :percent eta: :eta",
@@ -83,20 +83,20 @@ run_scGeneANOVA <- function(seurat_obj, gene_list = NULL, cell_type_column = NUL
         dplyr::bind_rows(results)
     }
     
-    # Get unique cell types for analysis
+    # 获取要分析的独特细胞类型
     cell_types <- unique(final_result[[cell_type_column]])
     
-    # Perform ANOVA and Tukey's test for all genes and cell types
+    # 对所有基因和细胞类型执行ANOVA和Tukey检验
     anova_tukey_results_df <- anova_all_genes(final_result, gene_list, cell_types, cell_type_column)
     
-    # Get unique groups for pairwise comparisons
+    # 获取成对比较的唯一组别
     unique_groups <- unique(seurat_obj@meta.data[[group_column]])
     group_combinations <- utils::combn(unique_groups, 2, simplify = FALSE)
     
-    # Initialize list to hold FC results
+    # 初始化用于保存FC结果的列表
     fc_results_list <- list()
     
-    # Calculate FC for each pairwise group combination
+    # 计算每个成对组别组合的FC
     total_combinations <- length(group_combinations)
     pb_fc <- progress::progress_bar$new(
         format = "  Calculating FC [:bar] :percent eta: :eta",
@@ -118,14 +118,14 @@ run_scGeneANOVA <- function(seurat_obj, gene_list = NULL, cell_type_column = NUL
                                  base = 2)
         pb_fc$tick()
         
-        # Check if FC result is not empty
+        # 检查FC结果是否为空
         if (!is.null(fc_result) && nrow(fc_result) > 0) {
             fc_result$Gene <- rownames(fc_result)
             
-            # Standardize group comparison naming convention
+            # 规范组别比较命名约定
             fc_result$Comparison <- gsub(" vs ", "-", fc_result$Group)
             
-            # Correct reversed comparisons if necessary
+            # 如果需要，修正反向比较
             reversed_comparisons <- sapply(fc_result$Comparison, function(x) {
                 parts <- strsplit(x, "-")[[1]]
                 if (paste0(parts, collapse = "-") %in% anova_tukey_results_df$Comparison) {
@@ -137,7 +137,7 @@ run_scGeneANOVA <- function(seurat_obj, gene_list = NULL, cell_type_column = NUL
                 }
             })
             
-            # Adjust reversed comparisons
+            # 调整反向比较
             fc_result$Comparison[reversed_comparisons] <- sapply(fc_result$Comparison[reversed_comparisons], function(x) {
                 parts <- strsplit(x, "-")[[1]]
                 paste0(rev(parts), collapse = "-")
@@ -153,17 +153,17 @@ run_scGeneANOVA <- function(seurat_obj, gene_list = NULL, cell_type_column = NUL
         }
     }
     
-    # Combine FC results with ANOVA results
+    # 将FC结果与ANOVA结果合并
     all_fc_results <- dplyr::bind_rows(fc_results_list)
     
-    # Merge FC results with ANOVA and Tukey's test results
+    # 将FC结果与ANOVA和Tukey检验结果合并
     if (nrow(all_fc_results) > 0) {
         anova_tukey_results_df$Comparison <- as.character(anova_tukey_results_df$Comparison)
         all_fc_results$Comparison <- as.character(all_fc_results$Comparison)
         
         final_merged_output <- merge(anova_tukey_results_df, all_fc_results, by = c("Gene", "Cell_Type", "Comparison"), all = TRUE)
         
-        # Remove the Group column from the final output
+        # 从最终输出中移除 Group 列
         final_merged_output <- dplyr::select(final_merged_output, -Group)
     } else {
         final_merged_output <- anova_tukey_results_df
@@ -210,17 +210,9 @@ calculateFC <- function(seurat_obj,
     data.1 <- data[features, cells.1, drop = FALSE]
     data.2 <- data[features, cells.2, drop = FALSE]
     
-    # Define the mean function with apply to replace rowMeans
-    scGeneANOVA_fc <- function(x, pseudocount.use, base) {
-        if (is.vector(x)) {
-            x <- matrix(x, nrow = 1)
-        }
-        return(log(apply(x, 1, mean, na.rm = TRUE) + pseudocount.use, base = base))
-    }
-    
-    # Calculate average expression for both groups
-    avg.exp.1 <- scGeneANOVA_fc(data.1, pseudocount.use, base)
-    avg.exp.2 <- scGeneANOVA_fc(data.2, pseudocount.use, base)
+    # Calculate average expression for both groups assuming LogNormalize
+    avg.exp.1 <- log(rowMeans(expm1(data.1), na.rm = TRUE) + pseudocount.use, base = base)
+    avg.exp.2 <- log(rowMeans(expm1(data.2), na.rm = TRUE) + pseudocount.use, base = base)
     
     # Calculate fold change
     fold_changes <- avg.exp.1 - avg.exp.2
@@ -229,8 +221,8 @@ calculateFC <- function(seurat_obj,
     fc.results <- data.frame(
         Gene = features,
         avg_logFC = fold_changes,
-        pct.1 = apply(data.1 > 0, 1, mean),
-        pct.2 = apply(data.2 > 0, 1, mean)
+        pct.1 = rowMeans(data.1 > 0),
+        pct.2 = rowMeans(data.2 > 0)
     )
     
     # Add group identities and cell type to the results
