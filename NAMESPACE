@@ -1,8 +1,8 @@
-# 导出函数
+# Export functions
 export(run_scGeneANOVA)
 export(calculateFC)
 
-# 导入外部包的函数
+# Import functions from external packages
 importFrom(Seurat, FetchData, Idents, WhichCells, GetAssayData)
 importFrom(dplyr, group_by, summarize, across, all_of, mutate, bind_rows, filter, select)
 importFrom(tidyr, pivot_longer)
@@ -10,4 +10,4 @@ importFrom(stats, aov, TukeyHSD)
 importFrom(utils, combn)
 importFrom(progress, progress_bar)
 importFrom(rlang, sym)
-importFrom(magrittr, `%>%`) 
+importFrom(magrittr, `%>%`)
