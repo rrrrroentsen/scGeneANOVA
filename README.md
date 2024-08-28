@@ -37,7 +37,5 @@ write.csv(results, "anova_tukey_results.csv", row.names = FALSE)
 
 ## Additional Notes
 For more detailed instructions and examples, please refer to the package documentation.
-
 If you encounter any issues or have suggestions for improvement, please open an issue on GitHub.
-
 This package is provided as-is under the MIT License.
